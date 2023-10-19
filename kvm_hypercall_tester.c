@@ -16,24 +16,24 @@ MODULE_VERSION("0.1");
 
 static int __init kvm_hypercall_tester_init(void)
 {
-    u64 *test_memory;
-    u64 pattern = 0xDEADBEEFDEADBEEF;
-    u64 read_pattern;
+    u8 *test_memory;  // Using a byte pointer
+    u8 pattern = 0xAA; // Single byte pattern
+    u8 read_pattern;
     u64 gpa, hpa;
 
     printk(KERN_INFO "Initializing KVM hypercall tester module.\n");
 
-    // Allocate memory
-    test_memory = kmalloc(sizeof(u64), GFP_KERNEL);
+    // Allocate memory for a single byte
+    test_memory = kmalloc(sizeof(u8), GFP_KERNEL);
     if(!test_memory) {
         printk(KERN_ERR "Failed to allocate memory.\n");
         return -ENOMEM;
     }
     printk(KERN_INFO "Memory allocated successfully.\n");
 
-    // Write a pattern
+    // Write a byte pattern
     *test_memory = pattern;
-    printk(KERN_INFO "Pattern %llx written to memory.\n", pattern);
+    printk(KERN_INFO "Pattern %x written to memory.\n", pattern);
 
     // Get the Guest Physical Address (GPA) of the memory
     gpa = virt_to_phys(test_memory);
@@ -58,12 +58,12 @@ static int __init kvm_hypercall_tester_init(void)
                  : "=a"(read_pattern)
                  : "a"(KVM_HC_READ_PHYS_ADDR), "b"(hpa)
                  : "memory");
-    printk(KERN_INFO "Value read from HPA: %llx\n", read_pattern);
+    printk(KERN_INFO "Value read from HPA: %x\n", read_pattern);
 
     if(read_pattern == pattern) {
         printk(KERN_INFO "Pattern matches!\n");
     } else {
-        printk(KERN_ERR "Pattern does not match. Expected: %llx, Got: %llx\n", pattern, read_pattern);
+        printk(KERN_ERR "Pattern does not match. Expected: %x, Got: %x\n", pattern, read_pattern);
     }
 
     kfree(test_memory);
