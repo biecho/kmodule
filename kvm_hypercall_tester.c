@@ -2,10 +2,12 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/errno.h>
 #include <asm/io.h>
 
 #define KVM_HC_READ_PHYS_ADDR 13
-#define KVM_HC_GPA_TO_HPA 14 
+#define KVM_HC_GPA_TO_HPA 14
+#define KVM_EINVAL -22  // Assuming the error code is -22, adjust as necessary
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("biecho");
@@ -42,7 +44,14 @@ static int __init kvm_hypercall_tester_init(void)
                  : "=a"(hpa)
                  : "a"(KVM_HC_GPA_TO_HPA), "b"(gpa)
                  : "memory");
-    printk(KERN_INFO "HPA retrieved via hypercall: %llx\n", hpa);
+
+    if(hpa == KVM_EINVAL) {
+        printk(KERN_ERR "Hypercall error: Invalid address or other error.\n");
+        kfree(test_memory);  // Free memory before returning
+        return -EINVAL;      // Signal an error
+    } else {
+        printk(KERN_INFO "HPA retrieved via hypercall: %llx\n", hpa);
+    }
 
     // Use a second hypercall to read the value at that HPA and compare
     asm volatile("vmcall"
