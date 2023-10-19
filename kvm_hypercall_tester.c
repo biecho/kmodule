@@ -19,32 +19,37 @@ static int __init kvm_hypercall_tester_init(void)
     u64 read_pattern;
     u64 gpa, hpa;
 
+    printk(KERN_INFO "Initializing KVM hypercall tester module.\n");
+
     // Allocate memory
     test_memory = kmalloc(sizeof(u64), GFP_KERNEL);
     if(!test_memory) {
         printk(KERN_ERR "Failed to allocate memory.\n");
         return -ENOMEM;
     }
+    printk(KERN_INFO "Memory allocated successfully.\n");
 
     // Write a pattern
     *test_memory = pattern;
+    printk(KERN_INFO "Pattern %llx written to memory.\n", pattern);
 
     // Get the Guest Physical Address (GPA) of the memory
     gpa = virt_to_phys(test_memory);
+    printk(KERN_INFO "GPA of the test memory: %llx\n", gpa);
 
     // Use a hypercall to get the Host Physical Address (HPA)
     asm volatile("vmcall"
                  : "=a"(hpa)
                  : "a"(KVM_HC_GPA_TO_HPA), "b"(gpa)
                  : "memory");
+    printk(KERN_INFO "HPA retrieved via hypercall: %llx\n", hpa);
 
     // Use a second hypercall to read the value at that HPA and compare
-    // (This is just to validate; you can remove it if unnecessary)
-    // Note: This assumes you have a second hypercall to read an HPA
     asm volatile("vmcall"
                  : "=a"(read_pattern)
                  : "a"(KVM_HC_READ_PHYS_ADDR), "b"(hpa)
                  : "memory");
+    printk(KERN_INFO "Value read from HPA: %llx\n", read_pattern);
 
     if(read_pattern == pattern) {
         printk(KERN_INFO "Pattern matches!\n");
@@ -53,6 +58,7 @@ static int __init kvm_hypercall_tester_init(void)
     }
 
     kfree(test_memory);
+    printk(KERN_INFO "Memory freed successfully.\n");
     return 0;
 }
 
@@ -63,3 +69,4 @@ static void __exit kvm_hypercall_tester_exit(void)
 
 module_init(kvm_hypercall_tester_init);
 module_exit(kvm_hypercall_tester_exit);
+
