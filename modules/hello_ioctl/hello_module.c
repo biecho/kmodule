@@ -71,36 +71,42 @@ static int hello_release(struct inode *inodep, struct file *filep) {
     return 0;
 }
 
-// Function to translate user-space virtual address to physical address.
 static int translate_user_virt_to_phys(
-  unsigned long virt_addr, 
+  unsigned long virt_addr,
   unsigned long *phys_addr) {
     struct page *page;
     unsigned long offset;
     int ret;
     unsigned long flags = 0; // We just want to read the physical address
 
+    printk(KERN_INFO "Translating virtual address: %lx\n", virt_addr);  // Print the input virtual address
+
     ret = get_user_pages(virt_addr, 1, flags, &page, NULL);
     if (ret != 1) {
+        printk(KERN_ERR "Failed to retrieve page for virtual address: %lx\n", virt_addr);  // Log error if unable to get page
         return -EFAULT;
     }
 
     offset = virt_addr & ~PAGE_MASK;
     *phys_addr = (page_to_pfn(page) << PAGE_SHIFT) + offset;
 
+    printk(KERN_INFO "Translated to physical address: %lx with offset: %lx\n", *phys_addr, offset);  // Print the resulting physical address and offset
+
     put_page(page);  // Release the page reference.
     return 0;
 }
 
-
 static long hello_ioctl(struct file *filep, unsigned int cmd, unsigned long arg) {
-    int ret_val = 12345; // dummy value
+    int ret;
+    unsigned long phys_addr;
+    int dummy_value = 12345;
+
     switch(cmd) {
         case IOCTL_WRITE_MSG:
             printk(KERN_INFO "Hello: Hello World from Kernel\n");
             break;
         case IOCTL_GET_VALUE:
-            if (copy_to_user((int *)arg, &ret_val, sizeof(int))) {
+            if (copy_to_user((int *)arg, &dummy_value, sizeof(int))) {
                 // Error copying to user
                 return -EFAULT;
             }
