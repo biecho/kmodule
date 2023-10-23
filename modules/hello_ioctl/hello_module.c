@@ -71,34 +71,27 @@ static int hello_release(struct inode *inodep, struct file *filep) {
     return 0;
 }
 
+// Function to translate user-space virtual address to physical address.
 static int translate_user_virt_to_phys(
   unsigned long virt_addr, 
   unsigned long *phys_addr) {
     struct page *page;
     unsigned long offset;
     int ret;
+    unsigned long flags = 0; // We just want to read the physical address
 
-    // Translate a single user-space virtual address 
-    // to its corresponding physical page.
-    ret = get_user_pages(current,      // Current task_struct
-                         current->mm,  // Current process's memory map
-                         virt_addr,    // User space address to translate
-                         1,            // Number of pages: just one in this case
-                         0,            // Write access? No.
-                         1,            // Force? Yes.
-                         &page,        // Output: struct page
-                         NULL);        // vma: we don't care for now
-
+    ret = get_user_pages(virt_addr, 1, flags, &page, NULL);
     if (ret != 1) {
-        return -EFAULT; 
+        return -EFAULT;
     }
 
     offset = virt_addr & ~PAGE_MASK;
-    *phys_addr = page_to_phys(page) + offset;
+    *phys_addr = (page_to_pfn(page) << PAGE_SHIFT) + offset;
 
     put_page(page);  // Release the page reference.
     return 0;
 }
+
 
 static long hello_ioctl(struct file *filep, unsigned int cmd, unsigned long arg) {
     int ret_val = 12345; // dummy value
