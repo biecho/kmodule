@@ -5,6 +5,9 @@
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
+#include <linux/device.h>
+#include <linux/cdev.h>
+#include <linux/ioctl.h>
 #include "module_ioctl.h"
 
 #define DEVICE_NAME "hello_device"
