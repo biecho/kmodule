@@ -5,6 +5,7 @@
 #include <linux/cdev.h>
 #include <linux/uaccess.h>
 #include <linux/ioctl.h>
+#include "module_ioctl.h"
 
 MODULE_LICENSE("GPL");
 
