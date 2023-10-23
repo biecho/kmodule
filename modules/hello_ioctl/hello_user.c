@@ -5,13 +5,13 @@
 #include <sys/ioctl.h>
 #include "module_ioctl.h"
 
-#define NUM_PAGES 10  // Number of pages to allocate.
+#define NUM_PAGES 10
 
 int main() {
     int fd, ret;
     int value = 0;
     char *allocated_memory;
-    unsigned long virt_addr;
+    addr_translation_t addr_trans;
 
     fd = open("/dev/hello_device", O_RDWR);
     if (fd < 0) {
@@ -40,11 +40,11 @@ int main() {
         allocated_memory[i * 4096] = i;  // Write a value to the start of each page.
     }
 
-    virt_addr = (unsigned long)allocated_memory;
-    printf("Allocated memory at virtual address: %lx\n", virt_addr);
+    addr_trans.virt_addr = (unsigned long)allocated_memory;
+    printf("Allocated memory at virtual address: %lx\n", addr_trans.virt_addr);
 
     // Fetch the physical address corresponding to the allocated virtual address.
-    ret = ioctl(fd, IOCTL_GET_PHYS_ADDR, &virt_addr);
+    ret = ioctl(fd, IOCTL_GET_PHYS_ADDR, &addr_trans);
     if (ret < 0) {
         perror("Failed to get physical address for the virtual address");
         free(allocated_memory);
@@ -52,8 +52,7 @@ int main() {
         return -1;
     }
 
-    // virt_addr now contains the physical address.
-    printf("Physical address corresponding to virtual address: %lx\n", virt_addr);
+    printf("Physical address corresponding to virtual address: %lx\n", addr_trans.phys_addr);
 
     free(allocated_memory);
     close(fd);
