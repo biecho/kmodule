@@ -5,14 +5,14 @@
 #include <linux/cdev.h>
 #include <linux/uaccess.h>
 #include <linux/ioctl.h>
+#include <linux/mm.h>
 #include "module_ioctl.h"
+
 
 MODULE_LICENSE("GPL");
 
 #define DEVICE_NAME "hello_device"
 #define CLASS_NAME "hello"
-
-#define IOCTL_WRITE_MSG _IOW(0x90, 0, char *)
 
 static int major_number;
 static struct class* hello_class = NULL;
@@ -71,6 +71,35 @@ static int hello_release(struct inode *inodep, struct file *filep) {
     return 0;
 }
 
+static int translate_user_virt_to_phys(
+  unsigned long virt_addr, 
+  unsigned long *phys_addr) {
+    struct page *page;
+    unsigned long offset;
+    int ret;
+
+    // Translate a single user-space virtual address 
+    // to its corresponding physical page.
+    ret = get_user_pages(current,      // Current task_struct
+                         current->mm,  // Current process's memory map
+                         virt_addr,    // User space address to translate
+                         1,            // Number of pages: just one in this case
+                         0,            // Write access? No.
+                         1,            // Force? Yes.
+                         &page,        // Output: struct page
+                         NULL);        // vma: we don't care for now
+
+    if (ret != 1) {
+        return -EFAULT; 
+    }
+
+    offset = virt_addr & ~PAGE_MASK;
+    *phys_addr = page_to_phys(page) + offset;
+
+    put_page(page);  // Release the page reference.
+    return 0;
+}
+
 static long hello_ioctl(struct file *filep, unsigned int cmd, unsigned long arg) {
     int ret_val = 12345; // dummy value
     switch(cmd) {
@@ -83,6 +112,18 @@ static long hello_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
                 return -EFAULT;
             }
             break;
+        case IOCTL_GET_PHYS_ADDR: {
+            ret = translate_user_virt_to_phys(arg, &phys_addr);
+            if (ret != 0) {
+                return ret; 
+            }
+
+            if (copy_to_user((void __user *)arg, &phys_addr, sizeof(phys_addr))) {
+                return -EFAULT; 
+            }
+            break;
+        }
+
         default:
             return -EINVAL;
     }
