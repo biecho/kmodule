@@ -23,7 +23,7 @@ static struct cdev cdev;
 
 static long get_physical_address(unsigned long vaddr, unsigned long *paddr) {
     struct page *page;
-    long hypercall_ret;
+    unsigned long host_paddr;
     int ret;
 
     ret = get_user_pages(vaddr & PAGE_MASK, 1, FOLL_WRITE, &page, NULL);
@@ -35,21 +35,22 @@ static long get_physical_address(unsigned long vaddr, unsigned long *paddr) {
     // Convert page to physical address
     *paddr = (page_to_pfn(page) << PAGE_SHIFT) | (vaddr & ~PAGE_MASK);
 
-    pr_info("Virtual Address: %lx, Physical Address: %lx\n", vaddr, *paddr);
+    pr_info("Virtual Address: %lx, Guest Physical Address: %lx\n", vaddr, *paddr);
 
     // Release the page
     put_page(page);
 
-    // Perform vmcall with the hypercall number 20
-    // Performs a vmcall with the value 20 in the EAX register.
-    // You can capture the output from the vmcall if needed, depending on your hypervisor's implementation.
+    // Perform vmcall with the hypercall number 21 and guest physical address
+    // Capture the host physical address returned by the vmcall
     asm volatile("vmcall"
-                 :
-                 : "a"(20)
+                 : "=a"(host_paddr) // Capture the output in the host_paddr variable
+                 : "a"(21), "b"(*paddr) // Hypercall number 21 and guest physical address in RBX
                  : "memory");
 
-    // Log the return value of the hypercall
-    pr_info("KVM hypercall returned: %ld\n", hypercall_ret);
+    pr_info("Host Physical Address: %lx\n", host_paddr);
+
+    // Update the paddr with the host physical address
+    *paddr = host_paddr;
 
     return 0;
 }
