@@ -13,13 +13,13 @@ all:
 
 clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
-	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions Module.symvers modules.order physical_addr_user
+	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions Module.symvers modules.order kvm_hammer_ioctl
 
 install: all
-	sudo insmod physical_addr_ioctl.ko
+	sudo insmod kvm_hammer_ioctl.ko
 
 uninstall:
-	sudo rmmod physical_addr_ioctl
+	sudo rmmod kvm_hammer_ioctl
 
 user: kvm_hammer_user.c
 	gcc -o physical_addr_user kvm_hammer_user.c
