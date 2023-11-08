@@ -110,7 +110,7 @@ int main() {
 
     printf("Read value: %lx\n", hp.value);
 
-    // Compare the value read with the initial value
+    // Compare only the relevant part (byte)
     if ((char)hp.value == test_value) {
         printf("Success: The values match.\n");
     } else {
