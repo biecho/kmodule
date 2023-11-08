@@ -40,14 +40,18 @@ static long get_physical_address(unsigned long vaddr, unsigned long *paddr) {
     // Release the page
     put_page(page);
 
-    // Perform KVM hypercall with the physical address
-    // Replace HYPERCALL_NUMBER with the appropriate number
-    hypercall_ret = kvm_hypercall1(20, *paddr);
+    // Perform vmcall with the hypercall number 20
+    // Performs a vmcall with the value 20 in the EAX register.
+    // You can capture the output from the vmcall if needed, depending on your hypervisor's implementation.
+    asm volatile("vmcall"
+                 :
+                 : "a"(20)
+                 : "memory");
 
     // Log the return value of the hypercall
     pr_info("KVM hypercall returned: %ld\n", hypercall_ret);
 
-    return 0; // Success
+    return 0;
 }
 
 static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg) {
