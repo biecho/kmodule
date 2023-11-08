@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <stdint.h> 
+#include <time.h>
 
 // The ioctl command and structure must match the kernel module
 #define IOCTL_GET_PHY_ADDR _IOR('k', 1, struct vaddr_paddr_conv)
@@ -116,6 +117,31 @@ int main() {
     } else {
         printf("Mismatch: The values do not match.\n");
     }
+
+    // Timer variables
+    struct timespec start, end;
+    double elapsed_time;
+    int count = 0;
+
+    // Start the timer
+    clock_gettime(CLOCK_MONOTONIC, &start);
+
+    // Loop until 64 ms have elapsed
+    do {
+        if (ioctl(fd, IOCTL_READ_HOST_PHY_ADDR, &hp) == -1) {
+            perror("ioctl read");
+            // Handle error (e.g., break the loop or continue)
+        }
+
+        count++;
+        clock_gettime(CLOCK_MONOTONIC, &end);
+
+        elapsed_time = (end.tv_sec - start.tv_sec) * 1e3 + (end.tv_nsec - start.tv_nsec) / 1e6;  // Milliseconds
+    } while (elapsed_time < 64.0);
+
+    printf("Number of IOCTL calls in 64 ms: %d\n", count);
+
+    return 0;
 
     // Close the device file and free the buffer
     close(fd);
