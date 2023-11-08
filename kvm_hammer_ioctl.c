@@ -9,7 +9,7 @@
 #include <linux/kvm_para.h> // Include if necessary for KVM hypercalls
 #include <linux/device.h> // Required for device_create
 
-#define DEVICE_NAME "mydevice"
+#define DEVICE_NAME "kvmhammer"
 #define IOCTL_GET_PHY_ADDR _IOR('k', 1, struct vaddr_paddr_conv)
 
 struct vaddr_paddr_conv {
@@ -181,5 +181,5 @@ module_init(my_module_init);
 module_exit(my_module_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Your Name");
-MODULE_DESCRIPTION("A simple kernel module to provide physical addresses for user space virtual addresses");
+MODULE_AUTHOR("Author");
+MODULE_DESCRIPTION("KVM Hammer");

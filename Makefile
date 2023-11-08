@@ -1,4 +1,4 @@
-obj-m += kvm_hypercall_tester.o
+obj-m += kvm_hammer_ioctl.o
 
 # Default kernel directory using uname
 KDIR := /lib/modules/$(shell uname -r)/build
@@ -11,6 +11,16 @@ endif
 all:
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
-clean: 
+clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
+	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions Module.symvers modules.order physical_addr_user
+
+install: all
+	sudo insmod physical_addr_ioctl.ko
+
+uninstall:
+	sudo rmmod physical_addr_ioctl
+
+user: kvm_hammer_user.c
+	gcc -o physical_addr_user kvm_hammer_user.c
 

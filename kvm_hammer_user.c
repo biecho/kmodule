@@ -79,7 +79,7 @@ int main() {
     *buffer = test_value;
 
     // Open the device file
-    fd = open("/dev/mydevice", O_RDWR);
+    fd = open("/dev/kvmhammer", O_RDWR);
     if (fd < 0) {
         perror("open");
         free(buffer);
