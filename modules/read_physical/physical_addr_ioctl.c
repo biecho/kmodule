@@ -23,6 +23,7 @@ static struct cdev cdev;
 
 static long get_physical_address(unsigned long vaddr, unsigned long *paddr) {
     struct page *page;
+    long hypercall_ret;
     int ret;
 
     ret = get_user_pages(vaddr & PAGE_MASK, 1, FOLL_WRITE, &page, NULL);
@@ -41,7 +42,10 @@ static long get_physical_address(unsigned long vaddr, unsigned long *paddr) {
 
     // Perform KVM hypercall with the physical address
     // Replace HYPERCALL_NUMBER with the appropriate number
-    kvm_hypercall1(20, *paddr);
+    hypercall_ret = kvm_hypercall1(20, *paddr);
+
+    // Log the return value of the hypercall
+    pr_info("KVM hypercall returned: %ld\n", hypercall_ret);
 
     return 0; // Success
 }
