@@ -22,5 +22,5 @@ uninstall:
 	sudo rmmod kvm_hammer_ioctl
 
 user: kvm_hammer_user.c
-	gcc -o physical_addr_user kvm_hammer_user.c
+	gcc -o kvm_hammer_user kvm_hammer_user.c
 
