@@ -7,10 +7,18 @@
 
 // The ioctl command and structure must match the kernel module
 #define IOCTL_GET_PHY_ADDR _IOR('k', 1, struct vaddr_paddr_conv)
+#define IOCTL_READ_HOST_PHY_ADDR _IOR('k', 2, struct host_paddr_data)
+
 struct vaddr_paddr_conv {
     unsigned long vaddr;
     unsigned long paddr;
 };
+
+struct host_paddr_data {
+    unsigned long host_paddr;
+    unsigned long value;
+};
+
 
 unsigned long get_physical_address_from_pagemap(unsigned long vaddr) {
     int pagemap_fd;
@@ -56,7 +64,9 @@ unsigned long get_physical_address_from_pagemap(unsigned long vaddr) {
 int main() {
     int fd;
     struct vaddr_paddr_conv vp;
+    struct host_paddr_data hp;
     char *buffer;
+    const char test_value = 0xAA; // Test value to write and read
 
     // Allocate a buffer in user space
     buffer = malloc(1024);
@@ -64,6 +74,9 @@ int main() {
         perror("malloc");
         return -1;
     }
+
+    // Write a byte to the buffer
+    *buffer = test_value;
 
     // Open the device file
     fd = open("/dev/mydevice", O_RDWR);
@@ -86,11 +99,25 @@ int main() {
 
     printf("Virtual Address: %p, Physical Address: %lx\n", buffer, vp.paddr);
 
-    unsigned long paddr_pagemap = get_physical_address_from_pagemap((unsigned long)buffer);
-    printf("Physical Address (pagemap): %lx\n", paddr_pagemap);
+    // Set up and call the new IOCTL to read from the physical address
+    hp.host_paddr = vp.paddr; // Use the physical address obtained
+    if (ioctl(fd, IOCTL_READ_HOST_PHY_ADDR, &hp) == -1) {
+        perror("ioctl read");
+        close(fd);
+        free(buffer);
+        return -1;
+    }
 
+    printf("Read value: %lx\n", hp.value);
 
-    // Close the device file
+    // Compare the value read with the initial value
+    if ((char)hp.value == test_value) {
+        printf("Success: The values match.\n");
+    } else {
+        printf("Mismatch: The values do not match.\n");
+    }
+
+    // Close the device file and free the buffer
     close(fd);
     free(buffer);
 

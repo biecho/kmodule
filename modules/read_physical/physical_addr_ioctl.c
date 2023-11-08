@@ -17,6 +17,13 @@ struct vaddr_paddr_conv {
     unsigned long paddr; // Physical address
 };
 
+#define IOCTL_READ_HOST_PHY_ADDR _IOR('k', 2, struct host_paddr_data)
+
+struct host_paddr_data {
+    unsigned long host_paddr; // Host physical address to read from
+    unsigned long value;      // Data read from the address
+};
+
 static int major;
 static struct class *class;
 static struct cdev cdev;
@@ -77,6 +84,25 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
                 return -EFAULT;
             }
             pr_info("IOCTL_GET_PHY_ADDR successful\n");
+            break;
+
+        case IOCTL_READ_HOST_PHY_ADDR:
+            if (copy_from_user(&hp, (struct host_paddr_data *)arg, sizeof(hp))) {
+                pr_err("Error copying from user\n");
+                return -EFAULT;
+            }
+
+            // Perform vmcall to read from host physical address
+            asm volatile("vmcall"
+                            : "=a"(hp.value)     // Capture the output (data read) in hp.value
+                            : "a"(22), "b"(hp.host_paddr) // Hypercall number 22 and host physical address
+                            : "memory");
+
+            if (copy_to_user((struct host_paddr_data *)arg, &hp, sizeof(hp))) {
+                pr_err("Error copying to user\n");
+                return -EFAULT;
+            }
+            pr_info("Read from host physical address: %lx, value: %lx\n", hp.host_paddr, hp.value);
             break;
 
         default:
