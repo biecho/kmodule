@@ -14,10 +14,11 @@ struct vaddr_paddr_conv {
 
 unsigned long get_physical_address_from_pagemap(unsigned long vaddr) {
     int pagemap_fd;
-    unsigned long paddr = 0;
+    uint64_t paddr = 0;
     off_t offset;
     ssize_t bytes_read;
     const size_t pagemap_entry_size = sizeof(uint64_t);
+    unsigned long page_offset = vaddr % sysconf(_SC_PAGESIZE);  // Calculate the offset within the page
 
     pagemap_fd = open("/proc/self/pagemap", O_RDONLY);
     if (pagemap_fd < 0) {
@@ -25,7 +26,7 @@ unsigned long get_physical_address_from_pagemap(unsigned long vaddr) {
         return 0;
     }
 
-    // Calculate the offset for the virtual address
+    // Calculate the offset for the virtual address in the pagemap file
     offset = (vaddr / sysconf(_SC_PAGESIZE)) * pagemap_entry_size;
 
     if (lseek(pagemap_fd, offset, SEEK_SET) == (off_t) -1) {
@@ -43,9 +44,10 @@ unsigned long get_physical_address_from_pagemap(unsigned long vaddr) {
 
     close(pagemap_fd);
 
-    // Shift the pagemap entry to get the physical address
+    // Extract the physical page frame number and calculate the physical address
     paddr = paddr & ((1ULL << 55) - 1); // Mask out the flag bits
-    paddr = paddr * sysconf(_SC_PAGESIZE); // Get the physical address
+    paddr = paddr * sysconf(_SC_PAGESIZE); // Convert page frame number to physical address
+    paddr += page_offset;  // Add the offset within the page
 
     return paddr;
 }
