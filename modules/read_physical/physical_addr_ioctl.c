@@ -64,7 +64,9 @@ static long get_physical_address(unsigned long vaddr, unsigned long *paddr) {
 
 static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg) {
     struct vaddr_paddr_conv vp;
+    struct host_paddr_data hp; // Declare hp variable
     long ret;
+    unsigned long temp_value;  // Temporary variable for inline assembly
 
     switch (cmd) {
         case IOCTL_GET_PHY_ADDR:
@@ -94,9 +96,11 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
             // Perform vmcall to read from host physical address
             asm volatile("vmcall"
-                            : "=a"(hp.value)     // Capture the output (data read) in hp.value
-                            : "a"(22), "b"(hp.host_paddr) // Hypercall number 22 and host physical address
-                            : "memory");
+                         : "=b"(temp_value)  // Capture the output in a temporary register
+                         : "a"(22), "b"(hp.host_paddr)
+                         : "memory");
+
+            hp.value = temp_value;  // Copy the result to hp.value
 
             if (copy_to_user((struct host_paddr_data *)arg, &hp, sizeof(hp))) {
                 pr_err("Error copying to user\n");
