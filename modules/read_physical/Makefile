@@ -13,4 +13,14 @@ all:
 
 clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
+	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions Module.symvers modules.order physical_addr_user
+
+install: all
+	sudo insmod physical_addr_ioctl.ko
+
+uninstall:
+	sudo rmmod physical_addr_ioctl
+
+user: physical_addr_user.c
+	gcc -o physical_addr_user physical_addr_user.c
 

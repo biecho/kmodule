@@ -7,7 +7,7 @@
 #include <linux/fs.h>
 #include <linux/printk.h>
 #include <linux/kvm_para.h> // Include if necessary for KVM hypercalls
-
+#include <linux/device.h> // Required for device_create
 
 #define DEVICE_NAME "mydevice"
 #define IOCTL_GET_PHY_ADDR _IOR('k', 1, struct vaddr_paddr_conv)
@@ -83,14 +83,60 @@ static struct file_operations fops = {
 };
 
 static int __init my_module_init(void) {
-    // Module initialization code
-    // Allocate device number, create class, add cdev, etc.
+    dev_t dev_num;
+    int err;
+
+    // Allocate a major number dynamically
+    err = alloc_chrdev_region(&dev_num, 0, 1, DEVICE_NAME);
+    if (err < 0) {
+        pr_err("Failed to allocate a major number\n");
+        return err;
+    }
+    major = MAJOR(dev_num);
+
+    // Create device class
+    class = class_create(THIS_MODULE, "mydevice_class");
+    if (IS_ERR(class)) {
+        unregister_chrdev_region(dev_num, 1);
+        pr_err("Failed to create class\n");
+        return PTR_ERR(class);
+    }
+
+    // Initialize and add cdev
+    cdev_init(&cdev, &fops);
+    err = cdev_add(&cdev, dev_num, 1);
+    if (err) {
+        class_destroy(class);
+        unregister_chrdev_region(dev_num, 1);
+        pr_err("Failed to add cdev\n");
+        return err;
+    }
+
+    // Create device file in /dev
+    if (IS_ERR(device_create(class, NULL, dev_num, NULL, DEVICE_NAME))) {
+        cdev_del(&cdev);
+        class_destroy(class);
+        unregister_chrdev_region(dev_num, 1);
+        pr_err("Failed to create device file\n");
+        return -1;
+    }
+
+    pr_info("Module loaded successfully\n");
     return 0;
 }
 
 static void __exit my_module_exit(void) {
-    // Cleanup code
-    // Unregister device, destroy class, etc.
+    dev_t dev_num = MKDEV(major, 0);
+
+    // Remove device file and class
+    device_destroy(class, dev_num);
+    class_destroy(class);
+
+    // Remove cdev and unregister device number
+    cdev_del(&cdev);
+    unregister_chrdev_region(dev_num, 1);
+
+    pr_info("Module unloaded successfully\n");
 }
 
 module_init(my_module_init);
