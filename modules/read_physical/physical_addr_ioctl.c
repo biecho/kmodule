@@ -94,14 +94,12 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
                 return -EFAULT;
             }
 
-            // Perform vmcall to read from host physical address
-            // In the device_ioctl function, IOCTL_READ_HOST_PHY_ADDR case
             asm volatile("vmcall"
-                        : "=b"(temp_value)  // Capture the output in a temporary register
-                        : "a"(22), "b"(hp.host_paddr)
-                        : "memory");
+             : "=a"(temp_value)  // Capture the output in EAX
+             : "a"(22), "b"(hp.host_paddr)
+             : "memory");
 
-            hp.value = temp_value & 0xFF;  // Extract only the relevant byte
+            hp.value = temp_value & 0xFF;  // Extracting only the relevant byte
 
             if (copy_to_user((struct host_paddr_data *)arg, &hp, sizeof(hp))) {
                 pr_err("Error copying to user\n");
