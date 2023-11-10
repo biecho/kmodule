@@ -130,7 +130,7 @@ int main() {
     // Loop until 64 ms have elapsed
     do {
         // Flush the cache line containing 'buffer'
-        _mm_clflushopt(buffer);
+        _mm_clflush(buffer);
 
         // Ensure all previous instructions have been executed
         _mm_mfence();
