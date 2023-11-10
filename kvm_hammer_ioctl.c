@@ -83,7 +83,6 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
                 pr_err("Error copying to user\n");
                 return -EFAULT;
             }
-            pr_info("IOCTL_GET_PHY_ADDR successful\n");
             break;
 
         case IOCTL_READ_HOST_PHY_ADDR:
@@ -101,8 +100,6 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
             end = ktime_get_ns();
             duration = end - start;
-
-            pr_info("vmcall operation took %llu nanoseconds\n", duration);
 
             hp.value = temp_value & 0xFF;  // Extracting only the relevant byte
 
