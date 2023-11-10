@@ -8,6 +8,7 @@
 #include <linux/printk.h>
 #include <linux/kvm_para.h> // Include if necessary for KVM hypercalls
 #include <linux/device.h> // Required for device_create
+#include <linux/ktime.h>
 
 #define DEVICE_NAME "kvmhammer"
 #define IOCTL_GET_PHY_ADDR _IOR('k', 1, struct vaddr_paddr_conv)
@@ -42,8 +43,6 @@ static long get_physical_address(unsigned long vaddr, unsigned long *paddr) {
     // Convert page to physical address
     *paddr = (page_to_pfn(page) << PAGE_SHIFT) | (vaddr & ~PAGE_MASK);
 
-    pr_info("Virtual Address: %lx, Guest Physical Address: %lx\n", vaddr, *paddr);
-
     // Release the page
     put_page(page);
 
@@ -53,8 +52,6 @@ static long get_physical_address(unsigned long vaddr, unsigned long *paddr) {
                  : "=a"(host_paddr) // Capture the output in the host_paddr variable
                  : "a"(21), "b"(*paddr) // Hypercall number 21 and guest physical address in RBX
                  : "memory");
-
-    pr_info("Host Physical Address: %lx\n", host_paddr);
 
     // Update the paddr with the host physical address
     *paddr = host_paddr;
@@ -67,6 +64,7 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     struct host_paddr_data hp; // Declare hp variable
     long ret;
     unsigned long temp_value;  // Temporary variable for inline assembly
+    unsigned long long start, end, duration;
 
     switch (cmd) {
         case IOCTL_GET_PHY_ADDR:
@@ -94,10 +92,17 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
                 return -EFAULT;
             }
 
+            start = ktime_get_ns();
+
             asm volatile("vmcall"
              : "=a"(temp_value)  // Capture the output in EAX
              : "a"(22), "b"(hp.host_paddr)
              : "memory");
+
+            end = ktime_get_ns();
+            duration = end - start;
+
+            pr_info("vmcall operation took %llu nanoseconds\n", duration);
 
             hp.value = temp_value & 0xFF;  // Extracting only the relevant byte
 
@@ -105,7 +110,6 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
                 pr_err("Error copying to user\n");
                 return -EFAULT;
             }
-            pr_info("Read from host physical address: %lx, value: %lx\n", hp.host_paddr, hp.value);
             break;
 
         default:
