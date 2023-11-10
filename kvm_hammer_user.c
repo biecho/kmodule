@@ -5,6 +5,7 @@
 #include <sys/ioctl.h>
 #include <stdint.h> 
 #include <time.h>
+#include <emmintrin.h>  // For _mm_clflushopt and _mm_mfence
 
 // The ioctl command and structure must match the kernel module
 #define IOCTL_GET_PHY_ADDR _IOR('k', 1, struct vaddr_paddr_conv)
@@ -128,6 +129,12 @@ int main() {
 
     // Loop until 64 ms have elapsed
     do {
+        // Flush the cache line containing 'buffer'
+        _mm_clflushopt(buffer);
+
+        // Ensure all previous instructions have been executed
+        _mm_mfence();
+
         if (ioctl(fd, IOCTL_READ_HOST_PHY_ADDR, &hp) == -1) {
             perror("ioctl read");
             // Handle error (e.g., break the loop or continue)
