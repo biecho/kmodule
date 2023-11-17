@@ -10,6 +10,7 @@
 // The ioctl command and structure must match the kernel module
 #define IOCTL_GET_PHY_ADDR _IOR('k', 1, struct vaddr_paddr_conv)
 #define IOCTL_READ_HOST_PHY_ADDR _IOR('k', 2, struct host_paddr_data)
+#define IOCTL_READ_MULTI_HOST_PHY_ADDR _IOR('k', 3, struct multi_host_paddr_data)
 
 struct vaddr_paddr_conv {
     unsigned long vaddr;
@@ -19,6 +20,11 @@ struct vaddr_paddr_conv {
 struct host_paddr_data {
     unsigned long host_paddr;
     unsigned long value;
+};
+
+struct multi_host_paddr_data {
+    unsigned long *host_paddrs; // Pointer to an array of host physical addresses
+    size_t count;               // Number of addresses in the array
 };
 
 
@@ -148,9 +154,29 @@ int main() {
 
     printf("Number of IOCTL calls in 64 ms: %d\n", count);
 
-    return 0;
+    size_t num_addresses = 10; 
 
-    // Close the device file and free the buffer
+    unsigned long *paddrs = malloc(num_addresses * sizeof(unsigned long));
+    if (!paddrs) {
+        perror("malloc");
+        // Handle allocation error
+    }
+
+    // Populate the array with physical addresses (could be the same or different)
+    for (size_t i = 0; i < num_addresses; i++) {
+        paddrs[i] = hp.host_paddr;
+    }
+
+    struct multi_host_paddr_data mhp;
+    mhp.host_paddrs = paddrs;
+    mhp.count = num_addresses;
+
+    if (ioctl(fd, IOCTL_READ_MULTI_HOST_PHY_ADDR, &mhp) == -1) {
+        perror("ioctl multi read");
+    }
+
+    free(paddrs);
+
     close(fd);
     free(buffer);
 
