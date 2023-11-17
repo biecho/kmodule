@@ -25,6 +25,14 @@ struct host_paddr_data {
     unsigned long value;      // Data read from the address
 };
 
+#define IOCTL_READ_MULTI_HOST_PHY_ADDR _IOR('k', 3, struct multi_host_paddr_data)
+
+struct multi_host_paddr_data {
+    unsigned long *host_paddrs; // Pointer to an array of host physical addresses
+    size_t count;               // Number of addresses in the array
+};
+
+
 static int major;
 static struct class *class;
 static struct cdev cdev;
@@ -108,6 +116,54 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
                 return -EFAULT;
             }
             break;
+        case IOCTL_READ_MULTI_HOST_PHY_ADDR: {
+            struct multi_host_paddr_data mhp;
+            unsigned long *user_paddrs;
+            unsigned long i,j, rounds;
+            unsigned long temp_value;
+
+            if (copy_from_user(&mhp, (struct multi_host_paddr_data *)arg, sizeof(mhp))) {
+                pr_err("Error copying from user\n");
+                return -EFAULT;
+            }
+
+            // Allocate kernel memory for the array of addresses
+            user_paddrs = kmalloc_array(mhp.count, sizeof(unsigned long), GFP_KERNEL);
+            if (!user_paddrs) {
+                return -ENOMEM;
+            }
+
+            // Copy the array of addresses from user space
+            if (copy_from_user(user_paddrs, mhp.host_paddrs, mhp.count * sizeof(unsigned long))) {
+                pr_err("Error copying address array from user\n");
+                kfree(user_paddrs);
+                return -EFAULT;
+            }
+
+            // Iterate over each address and perform the vmcall
+            rounds = 1000000;
+            start = ktime_get_ns();
+            for (i = 0; i < rounds; i++) {
+                mfence();
+
+                for (j = 0; j < mhp.count; j++) {
+                    asm volatile("vmcall"
+                                : "=a"(temp_value)
+                                : "a"(22), "b"(user_paddrs[j])
+                                : "memory");
+
+                }
+            }
+            end = ktime_get_ns();
+            duration = end - start;
+
+            pr_info("Total duration for IOCTL_READ_MULTI_HOST_PHY_ADDR: %llu ms\n", duration / 1000000);
+
+            // Free the allocated kernel memory
+            kfree(user_paddrs);
+            break;
+        }
+
 
         default:
             pr_err("Unsupported IOCTL command\n");
