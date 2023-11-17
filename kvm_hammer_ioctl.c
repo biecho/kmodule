@@ -1,14 +1,15 @@
-#include <linux/module.h>
-#include <linux/fs.h>
 #include <linux/cdev.h>
-#include <linux/uaccess.h>
+#include <linux/device.h> // Required for device_create
+#include <linux/fs.h>
+#include <linux/fs.h>
+#include <linux/ktime.h>
+#include <linux/kvm_para.h> // Include if necessary for KVM hypercalls
 #include <linux/mm.h> // Required for get_user_pages
 #include <linux/module.h>
-#include <linux/fs.h>
+#include <linux/module.h>
 #include <linux/printk.h>
-#include <linux/kvm_para.h> // Include if necessary for KVM hypercalls
-#include <linux/device.h> // Required for device_create
-#include <linux/ktime.h>
+#include <linux/slab.h>
+#include <linux/uaccess.h>
 
 #define DEVICE_NAME "kvmhammer"
 #define IOCTL_GET_PHY_ADDR _IOR('k', 1, struct vaddr_paddr_conv)
@@ -144,7 +145,7 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             rounds = 1000000;
             start = ktime_get_ns();
             for (i = 0; i < rounds; i++) {
-                mfence();
+                asm volatile("mfence" ::: "memory");
 
                 for (j = 0; j < mhp.count; j++) {
                     asm volatile("vmcall"
