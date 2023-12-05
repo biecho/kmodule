@@ -25,6 +25,7 @@ struct host_paddr_data {
 struct multi_host_paddr_data {
     unsigned long *host_paddrs; // Pointer to an array of host physical addresses
     size_t count;               // Number of addresses in the array
+    unsigned int nop_count;     // Number of NOP instructions to insert
 };
 
 
@@ -170,9 +171,36 @@ int main() {
     struct multi_host_paddr_data mhp;
     mhp.host_paddrs = paddrs;
     mhp.count = num_addresses;
+    mhp.nop_count = 100;
+
+    // Log the fields of mhp
+    printf("Preparing to call IOCTL_READ_MULTI_HOST_PHY_ADDR\n");
+    printf("Number of addresses: %zu\n", mhp.count);
+    printf("Number of NOP instructions: %u\n", mhp.nop_count);
+
+    const double COMM_OVERHEAD_MS = 250.0; // Communication overhead in milliseconds
+    struct timespec ioctl_start, ioctl_end;
+    double ioctl_duration;
+
+    // Start the timer for the ioctl call
+    clock_gettime(CLOCK_MONOTONIC, &ioctl_start);
 
     if (ioctl(fd, IOCTL_READ_MULTI_HOST_PHY_ADDR, &mhp) == -1) {
         perror("ioctl multi read");
+    } else {
+        // Stop the timer after the ioctl call
+        clock_gettime(CLOCK_MONOTONIC, &ioctl_end);
+
+        ioctl_duration = (ioctl_end.tv_sec - ioctl_start.tv_sec) * 1e3;
+        ioctl_duration += (ioctl_end.tv_nsec - ioctl_start.tv_nsec) / 1e6; // Convert to milliseconds
+
+        // Adjust for communication overhead and ensure non-negative duration
+        ioctl_duration = ioctl_duration - COMM_OVERHEAD_MS;
+        if (ioctl_duration < 0) {
+            ioctl_duration = 0;
+        }
+
+        printf("Adjusted ioctl call duration (excluding communication overhead): %.3f ms\n", ioctl_duration);
     }
 
     free(paddrs);

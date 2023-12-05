@@ -31,8 +31,8 @@ struct host_paddr_data {
 struct multi_host_paddr_data {
     unsigned long *host_paddrs; // Pointer to an array of host physical addresses
     size_t count;               // Number of addresses in the array
+    unsigned int nop_count;     // Number of NOP instructions to insert
 };
-
 
 static int major;
 static struct class *class;
@@ -120,8 +120,7 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
         case IOCTL_READ_MULTI_HOST_PHY_ADDR: {
             struct multi_host_paddr_data mhp;
             unsigned long *user_paddrs;
-            unsigned long i,j, rounds;
-            unsigned long temp_value;
+            int ret;
 
             if (copy_from_user(&mhp, (struct multi_host_paddr_data *)arg, sizeof(mhp))) {
                 pr_err("Error copying from user\n");
@@ -141,24 +140,15 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
                 return -EFAULT;
             }
 
-            // Iterate over each address and perform the vmcall
-            rounds = 1000000;
             start = ktime_get_ns();
-            for (i = 0; i < rounds; i++) {
-                asm volatile("mfence" ::: "memory");
 
-                for (j = 0; j < mhp.count; j++) {
-                    asm volatile("vmcall"
-                                : "=a"(temp_value)
-                                : "a"(22), "b"(user_paddrs[j])
-                                : "memory");
+            asm volatile("vmcall"
+                    : "=a"(ret)          
+                    : "a"(23), "b"(user_paddrs), "c"(mhp.count), "d"(mhp.nop_count)
+                    : "memory");
 
-                }
-            }
             end = ktime_get_ns();
             duration = end - start;
-
-            pr_info("Total duration for IOCTL_READ_MULTI_HOST_PHY_ADDR: %llu ms\n", duration / 1000000);
 
             // Free the allocated kernel memory
             kfree(user_paddrs);
