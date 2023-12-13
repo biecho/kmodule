@@ -11,6 +11,7 @@
 #define IOCTL_GET_PHY_ADDR _IOR('k', 1, struct vaddr_paddr_conv)
 #define IOCTL_READ_HOST_PHY_ADDR _IOR('k', 2, struct host_paddr_data)
 #define IOCTL_READ_MULTI_HOST_PHY_ADDR _IOR('k', 3, struct multi_host_paddr_data)
+#define IOCTL_TRIGGER_HYPERCALL _IO('k', 4)
 
 struct vaddr_paddr_conv {
     unsigned long vaddr;
@@ -94,6 +95,19 @@ int main() {
         free(buffer);
         return -1;
     }
+
+    // Trigger the custom hypercall
+    if (ioctl(fd, IOCTL_TRIGGER_HYPERCALL) == -1) {
+        perror("ioctl trigger hypercall");
+        close(fd);
+        free(buffer);
+        // Handle additional cleanup or error logging if necessary
+        return -1;
+    }
+
+    printf("Custom hypercall triggered successfully.\n");
+    return 0;
+
 
     // Set the virtual address in the structure
     vp.vaddr = (unsigned long)buffer;

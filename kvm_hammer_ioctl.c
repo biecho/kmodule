@@ -32,7 +32,12 @@ struct multi_host_paddr_data {
     unsigned long *host_paddrs; // Pointer to an array of host physical addresses
     size_t count;               // Number of addresses in the array
     unsigned int nop_count;     // Number of NOP instructions to insert
+    unsigned int repeat_count;  // New field for repeat count
 };
+
+
+// Add the new IOCTL command for triggering the hypercall
+#define IOCTL_TRIGGER_HYPERCALL _IO('k', 4)
 
 static int major;
 static struct class *class;
@@ -143,9 +148,9 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             start = ktime_get_ns();
 
             asm volatile("vmcall"
-                    : "=a"(ret)          
-                    : "a"(23), "b"(user_paddrs), "c"(mhp.count), "d"(mhp.nop_count)
-                    : "memory");
+                        : "=a"(ret)
+                        : "a"(23), "b"(user_paddrs), "c"(mhp.count), "d"(mhp.nop_count), "S"(mhp.repeat_count) // Add 'S' register to pass repeat_count
+                        : "memory");
 
             end = ktime_get_ns();
             duration = end - start;
@@ -154,8 +159,21 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             kfree(user_paddrs);
             break;
         }
+        case IOCTL_TRIGGER_HYPERCALL: {
+            unsigned long long start, end, duration;
 
+            start = ktime_get_ns(); // Get start time
 
+            // Perform the hypercall with the number 20
+            asm volatile("vmcall" ::"a"(20) : "memory");
+
+            end = ktime_get_ns(); // Get end time
+
+            duration = end - start; // Calculate duration
+
+            pr_info("Hypercall 20 triggered, duration: %llu ns\n", duration);
+            return 0;
+        }
         default:
             pr_err("Unsupported IOCTL command\n");
             return -ENOTTY;
